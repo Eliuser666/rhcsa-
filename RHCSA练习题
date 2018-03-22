@@ -1,0 +1,182 @@
+一、搭配环境
+1.破密码:找到这个linux16一行加一个
+rd.break console=tty0   Ctrl+x
+#mount -o remount,rw /sysroot
+#chroot /sysroot     
+#passwd    
+#touch /.autorelabel
+#exit
+#exit
+1.清空防火墙  
+iptables -F
+#service iptables save
+#systemctl disable iptables
+#systemctl stop iptables 
+#systemct	l status iptables(查看防火墙状态)电脑重启后也要查看）                               
+2.修改主机名:
+#vim /etc/hostname       
+ station.domainX.example.com
+#hostname（重启后查看主机名是否正确）
+3.配置ip                                   
+#vim /etc/sysconfig/network-scripts/ifcfg-eth0
+BOOTPROTO=static 
+ONBOOT=yes
+IPADDR=172.24.X.15     
+NETMASK=255.255.255.0     
+GATEWAY=172.24.X.254
+DNS1=172.24.X.254
+#systemctl restart NetworkManager
+#systemctl restart network
+#ip addr(查看IP地址是否正确)
+4.配置DNS   
+#vim /etc/resolv.conf(添加dns地址)
+#chattr +i /etc/resolv.conf（不允许任何人修改）  
+#cat /etc/resolv.conf(查看)    
+5.设置selinux
+#vim /etc/sysconfig/selinux   
+ selinux=enforcing
+#setenforce 1
+#getenforce
+6.配置yum仓库
+#vim /etc/yum.repo.d/server.repo                                         
+ [server] 
+ name=server  
+ baseurl=ftp://.... 
+ gpgcheck=0  
+#yum clean all
+#yum list
+二、练习题
+1.先查看文件系统 命令#df -Th如果是xfs就说明是对分区进行扩展命令（扩展时按最大值来如 150M—220M直接 就需要扩展220M）
+pvs
+vgs
+lvs
+fdisk /dev/vda
+n->p->enter->enter->+200M->t->entar->8e->p->w
+#partprone /dev/vda
+#pvcreate /dev/vda3
+#vgextend vo /dev/vda3
+#lvextend -L 220M /dev/vol/vo
+#xfs_growfs /dev/vol/vo                                          
+#df -Th (查看)
+2.新建manager组，在建两个用户natasha，Harry，使用此组为附属组，在建一个用户strit，不允许交互登陆。每个用户的密码为redhat
+#groupadd manager   
+#useradd -G manager natasha       
+#useradd -G manager harry
+#useradd -s /sbin/nologin strit     
+#passwd natasha 
+#passwd harry
+#passwd strit 
+#tail -5 /etc/passwd （查看）
+#tail -5 /etc/shadow （查看）
+3.将、/etc/fstab复制到、/var/tmp/fstab,设置用户harry执行读写，用户natasha不能做任何操作，其他用户可读。设置manager组为所属组
+#cp /etc/fstab /var/tmp             
+#setfacl -m u:harry:rw- /var/tmp/fstab 
+#setfacl -m u:natasha:--- /var/tmp/fstab
+#setfacl -m o::r-- /var/tmp/fstab   
+#chgrp manager /var/tmp/fstab
+#getfacl /var/tmp/fstab(验证实验结果)
+4.设置用户natasha在14:23 分别执/bin/echo "I AM RHCE" 
+# crontab -u natasha -e    
+ 23 14 * * * /bin/echo "I AM RHCE"     
+#crontab -u natasha -l （查看内容）
+#systemctl enable crond.service（设置开机启动）
+5.设置共享目录/home/shared/的所属组为manager，设置用户及组目录有读写执行权限，其他人无任何任何权限，并且用户在此目录下创建文件目录继承属组权限
+#mkdir /home/shared    
+#chgrp manager /home/shared     
+#chmod 2770 /home/shared
+#ls -ld /home/shared(验证结果)
+6.升级内核配置yum仓库指定kernel的baseurl的路径
+#uname -r (查看内核版本号)
+#vim /etc/yum.repos.d/server.repo
+(原来的不删，继续添加下面的内容)
+ [server1]
+ name=server1
+ baseurl=ftp://相应的地址
+ gpgcheck=0
+#yum clean all
+#yum install kernel
+7.加入ldap服务器，DN:dc=ldapuser,dc=example,dc=com,服务器：host.domainX.example.com,
+证书路径：http：//host.domianX.example.com/pub/EXAMPLE-CA-CERT,认证方式使用ldap
+#yum -y install sssd （安装提供缓存的包）
+#yum -y install authconfig-gtk（启图形所依赖的包）
+#authconfig-gtk（启图形）
+#systemctl enable sssd(图形界面中应添加的)
+LDAP
+DN:dc=ldapuser,dc=example,dc=com（看题目要求有几个就写几个）
+LDAP server：ldap://host.domainX.example.com
+证书：http://host.domainX.example.com/pub/EXAMPLE-CA-CERT
+LDAP password
+#systemctl restart sssd
+#getent passwd ldapuserX(验证信息，下面显示有东西才是成功)
+8.自动挂载用户宿主目录/ruser/ldapuserx,到/ruser/ldapuserx,的密码password，
+宿主目录已通过NFS共享，NFS：172.24.X0.5：/ruser/ldapuserx
+#yum -y install autofs
+#vim /etc/auto.master
+  /ruser /etc/auto.ruser
+#vim /etc/auto.ruser
+ ldapuserX  -rw  172.24.X.5:/ruser/ldapuserX 
+#systemctl stop autofs
+#systemctl start autofs
+#systemctl enable autofs.service（设置开机启动）
+#su - ldapuserX （验证结果）
+$exit
+9.设置NTP服务器：server.domainx0.example.com添加用vim /etc/chrony.conf
+#vim /etc/chrony.conf
+ server server.domainx0.example.com iburst
+#systemctl start chronyd
+#systemctl enable chronyd
+#timedatectl
+#timedatectl set-ntp true 
+#timedatectl
+
+（两种方法）.配置时钟服务(练习第九题)
+yum -y install system-config-date
+#system-config-date   
+  删除，添加172.24.X.254 保存 退出
+(或者用命令 #vim /etc/chrony.conf
+  server server.domainx0.example.com iburst  )
+#systemctl start chronyd
+#systemctl enable chronyd
+#timedatectl
+#timedatectl set-ntp true 
+10.建一个用户aclan并指定uid为3895
+#useradd -u 3895 aclan
+#id aclan （验证）
+11.增加一个512M的swap，实行启动挂载。先新建出扩展分区/dev/sda4 (全用系统剩余的空间)，再在扩展分区中新建swap分区/dev/vda5
+#fdisk -l (先查看)
+#fdisk /dev/vda
+n->e->enter->enter->n->enter->+512M->t->5->82->p->w
+#partx -a /dev/vda
+#mkswap /dev/vda5
+#vim /etc/fstab
+/dev/vda5  swap   swap   defaults  0 0
+#swapon -a /dev/vda5
+#swapon -s  （验证）
+12.查找所有属于普通用户Julia 的文件，并复制到/root/found/目录
+#mkdir /root/found/
+#cp  -a  `find  /  -user julia`  /root/found
+#ls /root/found（查看是否有文件）
+13.查找文件/usr/share/dict/words 中的包含的字符串“atens”，且不能有空行，并且顺序复制/root/lines.txt.
+#grep atens /usr/share/dict/words | grep -v "^$" >/root/lines.txt
+#wc -l /root/lines.txt
+14.请对/usr/local目录进行打包并用giz压缩，生成的文件保存为/root/backup.tar.gz
+#tar -zcvf /root/backup.tar.gz /usr/local
+  #tar -tf /root/back.tar.gz (验证)
+15.创建一个VG名字wgroup和LV名字为wsharePE（物理存储单元）大小8M LV 中PE个数100 ，自动挂载到/mnt/wshare格式为vfat
+#mkdir /mnt/wshare 
+#fdisk /dev/sda
+n->enter->+1G->t->6->8e
+#partprobe /dev/vda
+#pvcreate /dev/vda6
+#vgcreate -s 8M wgroup /dev/vda6
+#lvcreate -l 100 -n wshare wgroup 
+#vgdisplay wgroup (查看PE大小是否为8M)
+#mkfs.vfat /dev/wgroup/wshare
+#vim /etc/fstab
+/dev/wgroup/wshare  /mnt/wshare  vfat  defaults  0  0 
+#mount -a 
+#mount（验证）
+
+
+
+
